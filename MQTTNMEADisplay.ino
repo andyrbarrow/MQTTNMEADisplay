@@ -66,9 +66,9 @@ void connect() {
 
 // Here we are connecting MQTT, and sending NMEA data to the GPS object
 void messageReceived(MQTTClient *client, char topic[], char payload[], int payload_length) {
-  Serial.print("incoming: ");
+  //Serial.print("incoming: ");
   for (int i = 0; i < payload_length; i++) {
-    Serial.print(payload[i]);
+    //Serial.print(payload[i]);
     gps.encode(payload[i]);
   }
 
@@ -118,7 +118,7 @@ String DegreesToDegMin(float x) {
   return (degMin);
 }
 
-// This routine sends position, speed, time, and date to the display
+// This routine sends position,speed,and wind to the display
 void displayInfo()
 {
   ez.canvas.font(&UbuntuMono_Regular16pt7b);
@@ -392,7 +392,7 @@ void loop() {
   mainmenu.txtBig();
   mainmenu.addItem("Location", location_display);
   mainmenu.addItem("Wind", wind_display);
-  mainmenu.addItem("Engine", battery_display);
+  mainmenu.addItem("Engine", engine_display);
   mainmenu.addItem("Electrical", electrical_display);
   mainmenu.addItem("Settings", ez.settings.menu);
   mainmenu.upOnFirst("last|up");
@@ -403,10 +403,9 @@ void loop() {
 void location_display() {
   ezMenu locationDisplay;
   ez.header.show("Location");
-  ez.buttons.show("Main Menu");
+  ez.buttons.show("Electrical # Main Menu # Wind");
   String btnpressed = ez.buttons.poll();
-  while (btnpressed != "Main Menu") {
-    btnpressed = ez.buttons.poll();
+  while (btnpressed == "") {
     client.loop();
     if (gps.location.isUpdated()) {
       displayInfo();
@@ -416,6 +415,15 @@ void location_display() {
     if (!client.connected()) {
       connect();
     }
+    btnpressed = ez.buttons.poll();
+  }
+  if (btnpressed == "Electrical") {
+    ez.canvas.reset();
+    electrical_display();
+  }
+  if (btnpressed == "Wind") {
+    ez.canvas.reset();
+    wind_display();
   }
 }
 
@@ -437,9 +445,7 @@ void wind_display() {
 
   // Run until the Main Menu button is pressed
 
-  while (ez.buttons.poll() == "") {
-    btnpressed = ez.buttons.poll();
-    if (btnpressed == "Location") location_display();
+  while (btnpressed == "") {
     client.loop(); // look for MQTT data
 
     if (gps.location.isUpdated()) {
@@ -457,7 +463,7 @@ void wind_display() {
 
           // Draw the indicator on the rose
           float apparentWindangleradian = ((apparentWindangle - 90) * 71) / 4068.0;
-          
+
           //float apparentWindangleradian = ((apparentWindangle - 90) * 71) / 4068.0;
           float pointerWidth = 0.1745; // 10 degrees in radians. This will make the pointer 20 degrees on the bottom
 
@@ -519,8 +525,8 @@ void wind_display() {
       if (String(windReference.value()) == "T") {
         String windAng = windAngle.value();
         int trueWindangle = windAng.toInt();
-        Serial.print("True Wind Angle: ");
-        Serial.println(trueWindangle);
+        //Serial.print("True Wind Angle: ");
+        //Serial.println(trueWindangle);
         if (trueWindangle != trueWindOld) {
           // Print true wind angle on the upper right
           // Again, according to the NMEA spec, True (or Theoretical) is relative to the bow of the boat.
@@ -549,15 +555,25 @@ void wind_display() {
         }
       }
     }
-    delay(10);  // <- fixes some issues with WiFi stability
     // Reconnect if we lose the MQTT connection
     if (!client.connected()) {
       connect();
     }
+    btnpressed = ez.buttons.poll();
+  }
+  if (btnpressed == "Location") {
+    ez.canvas.reset();
+    location_display();
+  }
+  if (btnpressed == "Engine") {
+    ez.canvas.reset();
+    engine_display();
   }
 }
-void battery_display() {
 
+void engine_display() {
+  M5.Lcd.fillScreen(WHITE);
+  ez.buttons.wait("OK");
 }
 void electrical_display() {
   M5.Lcd.fillScreen(WHITE);
