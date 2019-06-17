@@ -3,6 +3,7 @@
 // by Andy Barrow
 // Now added to github
 
+#include <Arduino.h>
 #include <WiFi.h>
 #include <MQTT.h>
 #include <TinyGPS++.h>
@@ -31,6 +32,17 @@ String longiTude = "";
 int circleCenterX;
 int circleCenterY;
 
+//Funtions delcared (PlatformIO requuires this)-------------------------------------------------------
+void connect();
+void messageReceived(MQTTClient *client, char topic[], char payload[], int payload_length);
+void setup_wifi();
+String DegreesToDegMin(float x);
+void displayInfo();
+int fillArc(int x, int y, int start_angle, int seg_count, int rx, int ry, int w, unsigned int colour);
+void location_display();
+void wind_display();
+void battery_display();
+void electrical_display();
 
 WiFiClient net;
 MQTTClient client;
@@ -580,4 +592,3 @@ void electrical_display() {
   ez.buttons.wait("OK");
 
 }
-
