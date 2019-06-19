@@ -390,7 +390,7 @@ void setup() {
   // Start M5ez
 #include <themes/default.h>
 #include <themes/dark.h>
-#include <themes/heyya.h>
+#include "heyya.h"
   ezt::setDebug(INFO);
   ez.begin();
   // Connect MqTT
