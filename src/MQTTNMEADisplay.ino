@@ -7,18 +7,20 @@
 #include <WiFi.h>
 #include <MQTT.h>
 #include <TinyGPS++.h>
-#include <M5ez.h>
 #include <M5Stack.h>
+#include <M5ez.h>
 #include <ezTime.h>
-#include "Ubuntu_Regular16pt7b.h"
 #include "UbuntuMono_Regular16pt7b.h"
 
 #define DEG2RAD 0.0174532925
+#undef M5EZ_FACES
+
+#define LOCALTZ_POSIX	"CST-6CDT,M4.1.0/2,M10.5.0/2"		// Time in Vallarta
 
 // Set up WiFi and MQTT information
-const char* ssid = "ATTvCsR48s";
-const char* password = "iz#iqr26+b%i";
-const char* mqtt_server = "192.168.1.145";
+const char* ssid = "CASANET3";
+const char* password = "margaritaville";
+const char* mqtt_server = "192.168.1.70";
 //const char* mqttUser = "pi";
 //const char* mqttPassword = "gren67ada";
 
@@ -44,6 +46,12 @@ void wind_display();
 void battery_display();
 void electrical_display();
 
+// Set the time zone so ezTime doesn't try GeoIP
+// Set this for your timezone. Otherwise UTC will be used.
+//waitForSync();
+
+Timezone Mexico;
+
 WiFiClient net;
 MQTTClient client;
 
@@ -64,15 +72,12 @@ void connect() {
     Serial.print(".");
     delay(1000);
   }
-
   Serial.print("\nconnecting...");
-  while (!client.connect("arduino", "try", "try")) {
+  while (!client.connect("infodisplay", "try", "try")) {
     Serial.print(".");
     delay(1000);
   }
-
-  Serial.println("\nconnected!");
-
+  Serial.println("\nMQTT connected!");
   client.subscribe("inTopic");
 }
 
@@ -95,11 +100,15 @@ void setup_wifi() {
   Serial.print("Connecting to ");
   Serial.println(ssid);
   WiFi.begin(ssid, password);
-  int dot_cur = 0;
   int reset_index = 0;
+  ez.canvas.clear();
+  ez.canvas.font(&UbuntuMono_Regular16pt7b);
+  ez.canvas.println("Connecting to");
+  ez.canvas.println(ssid);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
+    ez.canvas.print(".");
     //If WiFi doesn't connect in 30 seconds, do a software reset
     reset_index ++;
     if (reset_index > 60) {
@@ -131,8 +140,7 @@ String DegreesToDegMin(float x) {
 }
 
 // This routine sends position,speed,and wind to the display
-void displayInfo()
-{
+void displayInfo() {
   ez.canvas.font(&UbuntuMono_Regular16pt7b);
   if (gps.location.isValid())
   {
@@ -308,24 +316,10 @@ void displayInfo()
   Serial.println();
 }
 
-// #########################################################################
-// Draw an arc with a defined thickness (modified to aid drawing spirals)
-// #########################################################################
+// this draws arcs
+int fillArc(int x, int y, int start_angle, int seg_count, int rx, int ry, int w, unsigned int colour) {
 
-// x,y == coords of centre of arc
-// start_angle = 0 - 359
-// seg_count = number of 3 degree segments to draw (120 => 360 degree arc)
-// rx = x axis radius
-// yx = y axis radius
-// w  = width (thickness) of arc in pixels
-// colour = 16 bit colour value
-// Note if rx and ry are the same an arc of a circle is drawn
-
-int fillArc(int x, int y, int start_angle, int seg_count, int rx, int ry, int w, unsigned int colour)
-{
-
-  // Make the segment size 7 degrees to prevent gaps when drawing spirals
-  byte seg = 7; // Angle a single segment subtends (made more than 6 deg. for spiral drawing)
+  byte seg = 7; // Angle a single segment subtends
   byte inc = 6; // Draw segments every 6 degrees
 
   // Draw colour blocks every inc degrees
@@ -386,13 +380,17 @@ void drawWindScreen() {
 
 void setup() {
   Serial.begin(115200);
-  setup_wifi();
+  //Mexico.setPosix(LOCALTZ_POSIX);
+  //Mexico.setTime(compileTime());
+  //Serial.print(F("Local time   :  "));
+  //Serial.println(Mexico.dateTime());
   // Start M5ez
 #include <themes/default.h>
 #include <themes/dark.h>
 #include "heyya.h"
   ezt::setDebug(INFO);
   ez.begin();
+  setup_wifi();
   // Connect MqTT
   client.begin(mqtt_server, net);
   client.onMessageAdvanced(messageReceived);
