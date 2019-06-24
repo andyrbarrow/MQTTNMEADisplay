@@ -20,7 +20,7 @@ const char* ssid = "CASANET3";
 const char* password = "margaritaville";
 const char* mqtt_server = "192.168.1.70";
 //const char* mqttUser = "pi";
-//const char* mqttPassword = "gren67ada";
+//const char* mqttPassword = "margaritaville";
 
 String DBT = "";
 String northSouth = "N ";
