@@ -11,11 +11,9 @@
 #include <M5ez.h>
 #include <ezTime.h>
 #include "UbuntuMono_Regular16pt7b.h"
+#include "mqttfail.h"
 
 #define DEG2RAD 0.0174532925
-#undef M5EZ_FACES
-
-#define LOCALTZ_POSIX	"CST-6CDT,M4.1.0/2,M10.5.0/2"		// Time in Vallarta
 
 // Set up WiFi and MQTT information
 const char* ssid = "CASANET3";
@@ -34,7 +32,7 @@ String longiTude = "";
 int circleCenterX;
 int circleCenterY;
 
-//Funtions delcared (PlatformIO requuires this)-------------------------------------------------------
+//Funtions delcared (PlatformIO requuires this - not Arduino IDE)-------------------------------------------------------
 void connect();
 void messageReceived(MQTTClient *client, char topic[], char payload[], int payload_length);
 void setup_wifi();
@@ -45,12 +43,6 @@ void location_display();
 void wind_display();
 void battery_display();
 void electrical_display();
-
-// Set the time zone so ezTime doesn't try GeoIP
-// Set this for your timezone. Otherwise UTC will be used.
-//waitForSync();
-
-Timezone Mexico;
 
 WiFiClient net;
 MQTTClient client;
@@ -72,10 +64,11 @@ void connect() {
     Serial.print(".");
     delay(1000);
   }
-  Serial.print("\nconnecting...");
+  Serial.print("\nMQTT connecting...");
   while (!client.connect("infodisplay", "try", "try")) {
     Serial.print(".");
     delay(1000);
+    //M5.Lcd.drawXBitmap(100, 100, mqttfail, mqttfail_width, mqttfail_height, TFT_WHITE);
   }
   Serial.println("\nMQTT connected!");
   client.subscribe("inTopic");
@@ -97,14 +90,15 @@ void setup_wifi() {
   delay(10);
   // We start by connecting to a WiFi network
   Serial.println();
-  Serial.print("Connecting to ");
-  Serial.println(ssid);
+  Serial.print("Connecting ");
+  //Serial.println(ssid);
+  //ez.wifi.begin();
   WiFi.begin(ssid, password);
   int reset_index = 0;
   ez.canvas.clear();
   ez.canvas.font(&UbuntuMono_Regular16pt7b);
-  ez.canvas.println("Connecting to");
-  ez.canvas.println(ssid);
+  ez.canvas.println("Connecting ");
+  //ez.canvas.println(ssid);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
@@ -219,49 +213,6 @@ void displayInfo() {
     Serial.print(F("INVALID"));
   }
 
-
-  // Date
-  if (gps.date.isValid())
-  {
-    Serial.print(gps.date.month());
-    Serial.print(F("/"));
-    Serial.print(gps.date.day());
-    Serial.print(F("/"));
-    Serial.print(gps.date.year());
-  }
-  else
-  {
-    Serial.print(F("INVALID"));
-  }
-
-  // Time
-  if (gps.time.isValid())
-  {
-    if (gps.time.hour() < 10) {
-      Serial.print(F("0"));
-    }
-    Serial.print(gps.time.hour());
-    Serial.print(F(":"));
-    if (gps.time.minute() < 10) {
-      Serial.print(F("0"));
-    }
-    Serial.print(gps.time.minute());
-    Serial.print(F(":"));
-    if (gps.time.second() < 10) {
-      Serial.print(F("0"));
-    }
-    Serial.print(gps.time.second());
-    Serial.print(F("."));
-    if (gps.time.centisecond() < 10) {
-      Serial.print(F("0"));
-    }
-    Serial.print(gps.time.centisecond());
-  }
-  else
-  {
-    Serial.print(F("INVALID"));
-  }
-
   // We are cheating a little here, by not taking into account units on wind speed (Knots or Meters/sec)
   // Wind
   // Apparent Wind
@@ -269,6 +220,7 @@ void displayInfo() {
     ez.canvas.y(ez.canvas.top() + 100);
     ez.canvas.x(ez.canvas.lmargin());
     M5.lcd.fillRect(ez.canvas.lmargin(), ez.canvas.top() + 100, 320, 23, ez.theme->background); //erase partial place for updating data
+    // Apparent Wind Speed
     ez.canvas.print("AWS:");
     String windSpee = windSpeed.value();
     if (windSpee.toFloat() < 10)  ez.canvas.print(" ");
@@ -276,6 +228,7 @@ void displayInfo() {
     ez.canvas.y(ez.canvas.top() + 100);
     ez.canvas.x(ez.canvas.lmargin() + 160);
     M5.lcd.fillRect(ez.canvas.lmargin() + 160, ez.canvas.top() + 100, 320, 23, ez.theme->background); //erase partial place for updating data
+    // Apparent Wind Angle
     ez.canvas.print("AWA:");
     String windAng = windAngle.value();
     int trueWindangle = windAng.toInt();
@@ -293,6 +246,7 @@ void displayInfo() {
     ez.canvas.y(ez.canvas.top() + 130);
     ez.canvas.x(ez.canvas.lmargin());
     M5.lcd.fillRect(10, ez.canvas.top() + 130, 320, 23, ez.theme->background); //erase partial place for updating data
+    // True Wind Speed
     ez.canvas.print("TWS:");
     String windSpee = windSpeed.value();
     if (windSpee.toFloat() < 10)  ez.canvas.print(" ");
@@ -300,6 +254,7 @@ void displayInfo() {
     ez.canvas.y(ez.canvas.top() + 130);
     ez.canvas.x(ez.canvas.lmargin() + 160);
     M5.lcd.fillRect(ez.canvas.lmargin() + 160, ez.canvas.top() + 130, 320, 23, ez.theme->background); //erase partial place for updating data
+    // True Wind Angle
     ez.canvas.print("TWA:");
     String windAng = windAngle.value();
     int trueWindangle = windAng.toInt();
@@ -352,22 +307,21 @@ void drawWindScreen() {
   M5.Lcd.fillEllipse(ez.canvas.lmargin() + 160, ez.canvas.top() + 100, 90, 90, ez.theme->background);
   circleCenterX = ez.canvas.lmargin() + 160;
   circleCenterY = ez.canvas.top() + 100;
-  // do the small ticks
+  // do the small ticks every 15 degrees
   int roseAnglemark = 0;
   while (roseAnglemark < 360) {
     float roseAnglemarkradian = ((roseAnglemark - 90) * 71) / 4068.0;
     M5.Lcd.drawLine (int(circleCenterX + (80 * cos(roseAnglemarkradian))), int(circleCenterY + (80 * sin(roseAnglemarkradian))), int(circleCenterX + (90 * cos(roseAnglemarkradian))), int(circleCenterY + (90 * sin(roseAnglemarkradian))), ez.theme->foreground);
     roseAnglemark += 15;
   }
-  // do the longer ticks
+  // do the longer ticks every 45 degrees
   roseAnglemark = 0;
   while (roseAnglemark < 360) {
     float roseAnglemarkradian = ((roseAnglemark - 90) * 71) / 4068.0;
     M5.Lcd.drawLine (int(circleCenterX + (70 * cos(roseAnglemarkradian))), int(circleCenterY + (70 * sin(roseAnglemarkradian))), int(circleCenterX + (90 * cos(roseAnglemarkradian))), int(circleCenterY + (90 * sin(roseAnglemarkradian))), TFT_RED);
     roseAnglemark += 45;
   }
-
-  // put red and green on each side
+  // put red and green arcs on each side
   fillArc(circleCenterX, circleCenterY, 45, 14, 93, 93, 5, TFT_GREEN);
   fillArc(circleCenterX, circleCenterY, 210, 14, 93, 93, 5, TFT_RED);
 
@@ -379,18 +333,21 @@ void drawWindScreen() {
 }
 
 void setup() {
+  #include <themes/default.h>
+  #include <themes/dark.h>
+  #include "heyya.h"
   Serial.begin(115200);
-  //Mexico.setPosix(LOCALTZ_POSIX);
-  //Mexico.setTime(compileTime());
-  //Serial.print(F("Local time   :  "));
-  //Serial.println(Mexico.dateTime());
   // Start M5ez
-#include <themes/default.h>
-#include <themes/dark.h>
-#include "heyya.h"
   ezt::setDebug(INFO);
+  // This is the timezone to start with. Reset this to whatever timezone you wish
+  Timezone Mexico;
+  Mexico.setLocation("America/Mexico_City");
+  if (!Mexico.setCache(0)) Mexico.setLocation("America/Mexico_City");
+  Mexico.setDefault();
+
   ez.begin();
   setup_wifi();
+
   // Connect MqTT
   client.begin(mqtt_server, net);
   client.onMessageAdvanced(messageReceived);
@@ -416,15 +373,15 @@ void location_display() {
   ez.buttons.show("Electrical # Main Menu # Wind");
   String btnpressed = ez.buttons.poll();
   while (btnpressed == "") {
+    // Reconnect if we lose the MQTT connection
+    if (!client.connected()) {
+      connect();
+    }
     client.loop();
     if (gps.location.isUpdated()) {
       displayInfo();
     }
     delay(10);  // <- fixes some issues with WiFi stability
-    // Reconnect if we lose the MQTT connection
-    if (!client.connected()) {
-      connect();
-    }
     btnpressed = ez.buttons.poll();
   }
   if (btnpressed == "Electrical") {
@@ -456,10 +413,13 @@ void wind_display() {
   // Run until the Main Menu button is pressed
 
   while (btnpressed == "") {
+    // Reconnect if we lose the MQTT connection
+    if (!client.connected()) {
+      connect();
+    }
     client.loop(); // look for MQTT data
 
     if (gps.location.isUpdated()) {
-
       // Get and print the apparent wind angle
       if (String(windReference.value()) == "R") {
         String windAng = windAngle.value();
@@ -564,10 +524,6 @@ void wind_display() {
           truWindSpeedOld = windSpeedFloat;
         }
       }
-    }
-    // Reconnect if we lose the MQTT connection
-    if (!client.connected()) {
-      connect();
     }
     btnpressed = ez.buttons.poll();
   }
