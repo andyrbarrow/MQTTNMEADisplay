@@ -5,4 +5,4 @@ This is designed to be used with OpenPlotter, but should work with any system th
 
 It makes use of the excellent M5ez library, and connects to OpenPlotter via Node-Red. It also needs a couple of other libraries, as can be seen from the #includes.
 
-This is a WIP.
+I am no longer working on this project. I have ported this code to a new display that uses SignalK. https://github.com/andyrbarrow/SignalKM5StackInstrument
